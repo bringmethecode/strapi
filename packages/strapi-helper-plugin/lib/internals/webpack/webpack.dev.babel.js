@@ -88,7 +88,7 @@ module.exports = require('./webpack.base.babel')({
     {
       main: [
         `webpack-hot-middleware/client?path=http://localhost:${port}/__webpack_hmr`,
-        path.join(appPath, 'admin', 'admin', 'src', 'app.js'),
+        path.join(appPath, 'admin', 'admin', 'src', 'appDev.js'),
       ],
     },
     plugins.src.reduce((acc, current) => {
@@ -202,6 +202,20 @@ module.exports = require('./webpack.base.babel')({
       'strapi-helper-plugin',
       'node_modules',
       'styled-components',
+    ),
+    'react-dnd': path.resolve(
+      rootAdminpath,
+      'node_modules',
+      'strapi-helper-plugin',
+      'node_modules',
+      'react-dnd',
+    ),
+    'react-dnd-html5-backend': path.resolve(
+      rootAdminpath,
+      'node_modules',
+      'strapi-helper-plugin',
+      'node_modules',
+      'react-dnd-html5-backend',
     ),
   },
 

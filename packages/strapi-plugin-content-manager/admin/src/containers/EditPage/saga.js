@@ -9,23 +9,19 @@ import {
   take,
   takeLatest,
 } from 'redux-saga/effects';
-
 import { makeSelectSchema } from 'containers/App/selectors';
-
 // Utils.
 import cleanData from 'utils/cleanData';
 import request from 'utils/request';
 import templateObject from 'utils/templateObject';
-
 import {
   getDataSucceeded,
-  getLayoutSucceeded,
   setFormErrors,
   setLoader,
   submitSuccess,
   unsetLoader,
 } from './actions';
-import { GET_DATA, GET_LAYOUT, SUBMIT } from './constants';
+import { DELETE_DATA, GET_DATA, SUBMIT } from './constants';
 import {
   makeSelectFileRelations,
   makeSelectIsCreating,
@@ -38,39 +34,35 @@ function* dataGet(action) {
   try {
     const modelName = yield select(makeSelectModelName());
     const params = { source: action.source };
-    const [response, layout] = yield [
+    const [response] = yield [
       call(request, `/content-manager/explorer/${modelName}/${action.id}`, { method: 'GET', params }),
-      call(request, '/content-manager/layout', { method: 'GET', params }),
     ];
     const pluginHeaderTitle = yield call(templateObject, { mainField: action.mainField }, response);
 
-    // Remove the updated_at & created_at fields so it is updated correctly when using Postgres or MySQL db
-    if (response.updated_at) {
-      delete response.created_at;
-      delete response.updated_at;
-    }
-
-    // Remove the updatedAt & createdAt fields so it is updated correctly when using MongoDB
-    if (response.updatedAt) {
-      delete response.createdAt;
-      delete response.updatedAt;
-
-    }
-
     yield put(getDataSucceeded(action.id, response, pluginHeaderTitle.mainField));
-    yield put(getLayoutSucceeded(layout));
   } catch(err) {
     strapi.notification.error('content-manager.error.record.fetch');
   }
 }
 
-function* layoutGet(action) {
+function* deleteData() {
   try {
-    const params = { source: action.source };
-    const response = yield call(request, '/content-manager/layout', { method: 'GET', params });
-    yield put(getLayoutSucceeded(response));
+    const currentModelName = yield select(makeSelectModelName());
+    const record = yield select(makeSelectRecord());
+    const id = record.id || record._id;
+    const source = yield select(makeSelectSource());
+    const requestUrl = `/content-manager/explorer/${currentModelName}/${id}`;
+
+    yield call(request, requestUrl, { method: 'DELETE', params: { source } });
+    strapi.notification.success('content-manager.success.record.delete');
+    yield new Promise(resolve => {
+      setTimeout(() => {
+        resolve();
+      }, 300);
+    });
+    yield put(submitSuccess());
   } catch(err) {
-    strapi.notification('notification.error');
+    strapi.notification.error('content-manager.error.record.delete');
   }
 }
 
@@ -82,6 +74,17 @@ export function* submit() {
   const source = yield select(makeSelectSource());
   const schema = yield select(makeSelectSchema());
   let shouldAddTranslationSuffix = false;
+  // Remove the updated_at & created_at fields so it is updated correctly when using Postgres or MySQL db
+  if (record.updated_at) {
+    delete record.created_at;
+    delete record.updated_at;
+  }
+
+  // Remove the updatedAt & createdAt fields so it is updated correctly when using MongoDB
+  if (record.updatedAt) {
+    delete record.createdAt;
+    delete record.updatedAt;
+  }
 
   try {
     // Show button loader
@@ -176,7 +179,7 @@ export function* submit() {
 
 function* defaultSaga() {
   const loadDataWatcher = yield fork(takeLatest, GET_DATA, dataGet);
-  yield fork(takeLatest, GET_LAYOUT, layoutGet);
+  yield fork(takeLatest, DELETE_DATA, deleteData);
   yield fork(takeLatest, SUBMIT, submit);
 
   yield take(LOCATION_CHANGE);
